@@ -1,0 +1,35 @@
+# operatörümün Kubernetes API'larına erişim izni almasını sağladım
+# ServiceAccount tanımı
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: flaskapp-service-account
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: operator-clusterrole
+rules:
+- apiGroups: ["crd.domain"]
+  resources: ["*"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["pods", "events"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: operator-clusterrolebinding
+subjects:
+- kind: ServiceAccount
+  name: flaskapp-service-account
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io

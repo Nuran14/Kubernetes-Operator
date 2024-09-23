@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Kayıt</title> <!-- Sayfa başlığı -->
+
+    <style>
+        /* Arka plan resmi */
+        body { 
+            background-image: url("/static/images/postgre.png");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            background-repeat: no-repeat;
+        }
+
+        /* Mesajların renkleri */
+        .success {
+            color: green;   
+            font-weight: bold;  
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+
+        /* Kutu düzeni */
+        .container {
+            display: flex;
+            justify-content: space-between;
+            width: 100%; 
+            padding: 20px; 
+        }
+
+        /* Arka plan stilleri */
+        .left, .right {
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            width: 45%;
+        }
+
+        /* Tablo stili */
+        table {
+            width: 100%; 
+            border-collapse: collapse; 
+        }
+
+        table, th, td {
+            border: 1px solid black;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+
+        .password-text {
+            font-family: monospace;
+            font-size: 16px;
+        }
+
+        .toggle-password {
+            cursor: pointer;
+        }
+
+        /* Güncelleme mesajı için alan */
+        #update-message {
+            display: none;
+            font-weight: bold;
+        }
+
+        /* ConfigMap Key-Value Gösterim Stili */
+        #configmap-display pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Sol Kısım: Giriş Formu -->
+        <div class="left">
+            <form action="{{ url_for('register') }}" method="POST">
+                <h2>Database Kayıt</h2>
+                <label for="username">Kullanıcı Adı:</label><br>
+                <input type="text" id="username" name="username" required><br><br>
+
+                <label for="password">Şifre:</label><br>
+                <input type="password" id="password" name="password" required><br><br>
+
+                <input class="test" type="submit" value="Kaydet"> 
+                
+                <p id="flask-app-tag"></p>
+                <p id="kub-image-tag"></p>
+                <p id="configmap-display"></p>
+                <p id="update-message"></p> <!-- Güncelleme mesajı burada gösterilecek -->
+
+                <!-- ConfigMap ve Image bilgilerini sunucudan çek -->
+                <script>
+                    const configmapName = 'flask-config-map';  // Gösterilecek ConfigMap'in adı
+
+                    // ConfigMap verilerini sunucudan çek
+                    fetch(`/get-configmap/${configmapName}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.error) {
+                            document.getElementById('configmap-display').textContent = `Error: ${data.error}`;
+                        } else {
+                            // Sadece ConfigMap'in "data" kısmını alıyoruz
+                            const configMapData = data.data;
+                            const configMapDisplayElement = document.getElementById('configmap-display');
+
+                            // Key-value çiftlerini göster
+                            let displayContent = '<pre>';
+                            for (const [key, value] of Object.entries(configMapData)) {
+                                displayContent += `${key}: ${value}\n`;
+                            }
+                            displayContent += '</pre>';
+
+                            configMapDisplayElement.innerHTML = displayContent;
+                        }
+                    })
+                    .catch(error => {
+                        // Hata olursa mesajı gizli tut
+                        document.getElementById('configmap-display').style.display = 'none'; 
+                    });
+
+                    // Docker Hub ve Kubernetes Deployment Image bilgilerini çek ve göster
+                    let isImageVisible = false;
+                    const flaskAppImageTag = document.getElementById('flask-app-tag');
+                    const kubImageTag = document.getElementById('kub-image-tag');
+                    fetch('/flask-app')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.image && data.kub_image) {
+                                flaskAppImageTag.textContent = `Latest Image: ${data.image}`;
+                                kubImageTag.textContent = `Current Image: ${data.kub_image}`;
+                                flaskAppImageTag.style.display = 'block';
+                                kubImageTag.style.display = 'block';
+                                isImageVisible = true;
+                            } else {
+                                flaskAppImageTag.textContent = "Operatör Image alınamadı!";
+                                kubImageTag.textContent = "Yönetilen Deployment Image alınamadı!";
+                                flaskAppImageTag.style.display = 'block';
+                                kubImageTag.style.display = 'block';
+                                isImageVisible = true;
+                            }
+                        })
+                        .catch(error => {
+                            flaskAppImageTag.textContent = "Error: Operatör Image alınamadı!";
+                            kubImageTag.textContent = "Error: Yönetilen Deployment Image alınamadı!";
+                            flaskAppImageTag.style.display = 'block';
+                            kubImageTag.style.display = 'block';
+                            isImageVisible = true;
+                        });
+
+                    // ConfigMap güncelleme fonksiyonu
+                    function updateConfigMap(configmapName, updatedData) {
+                        fetch(`/update-configmap/${configmapName}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ data: updatedData })  // Güncellenmiş veriyi gönderiyoruz
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            const updateMessageElement = document.getElementById('update-message');
+                            
+                            if (data.message) {
+                                updateMessageElement.textContent = data.message;
+                                updateMessageElement.style.color = 'green';
+                                updateMessageElement.style.display = 'block';
+                                setTimeout(() => {
+                                    updateMessageElement.style.display = 'none';  
+                                }, 3000);
+                            } else if (data.error) {
+                                updateMessageElement.textContent = `Hata: ${data.error}`;
+                                updateMessageElement.style.color = 'red';
+                                updateMessageElement.style.display = 'block';
+                                setTimeout(() => {
+                                    updateMessageElement.style.display = 'none';  
+                                }, 5000);
+                            }
+                        })
+                        .catch(error => {
+                            const updateMessageElement = document.getElementById('update-message');
+                            updateMessageElement.textContent = `Hata: ${error}`;
+                            updateMessageElement.style.color = 'red'; 
+                            updateMessageElement.style.display = 'block';
+                        });
+                    }
+
+                    // Örnek kullanım: ConfigMap güncelleme
+                    const updatedData = { "FLASK_SECRET_KEY": "new_secret_key" };  // Backend'e gönderilecek veri
+                    // Yalnızca güncelleme işlemi gerçekten tetiklendiğinde bu fonksiyonu çağırın
+                    // updateConfigMap('flask-config-map', updatedData);  // ConfigMap güncelleme fonksiyonunu çağır
+                </script>
+            </form>
+
+            <!-- Flash mesajlarını gösterir -->
+            {% with messages = get_flashed_messages(with_categories=True) %}
+                {% if messages %}
+                    <ul>
+                        {% for category, message in messages %}
+                            <li class="{{ category }}">{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            {% endwith %}
+        </div>
+
+        <!-- Sağ Kısım: Kullanıcı Tablosu -->
+        <div class="right">
+            <h2>Kullanıcı Listesi</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Kullanıcı Adı</th>
+                        <th>Şifre</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+
+                        <td>{{ user.username }}</td>
+                        <td>
+                            <div class="password-container">
+                                <span class="password-text" data-password="{{ user.password }}">&#8226;&#8226;&#8226;&#8226;&#8226;</span>
+                                <span class="toggle-password" onclick="togglePassword(this)">&#128065;</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- JS: Şifreyi göster/gizle -->
+    <script>
+        function togglePassword(element) {
+            const passwordText = element.previousElementSibling;  // Şifreyi gösteren span
+            const actualPassword = passwordText.getAttribute('data-password');  // Şifrenin orijinal hali
+            
+            if (passwordText.textContent.includes('•')) {
+                passwordText.textContent = actualPassword;
+            } else {
+                passwordText.textContent = '•••••';
+            }
+        }
+    </script>
+</body>
+</html>

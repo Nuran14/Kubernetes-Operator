@@ -1,0 +1,4 @@
+kopf
+kubernetes
+psycopg2
+

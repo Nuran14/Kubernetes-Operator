@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: operator-deployment
+  labels:
+    app: operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: operator
+  template:
+    metadata:
+      labels:
+        app: operator
+    spec:
+      serviceAccountName: flaskapp-service-account
+      containers:
+        - name: operator-container
+          image: nuraner/operator-flask:v1.5
+          command: ["kopf"]
+          args: ["run", "/app/operator.py"]
+          #ports:
+          #  - containerPort: 5000

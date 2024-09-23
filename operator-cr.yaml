@@ -1,0 +1,28 @@
+apiVersion: crd.domain/v1
+kind: FlaskApp
+metadata:
+  name: flask-app
+spec:
+  deploymentName: flask-app-deployment
+  replicas: 1
+  image: nuraner/flask-app:v1.7
+  serviceType: NodePort 
+  serviceAccountName: flaskapp-service-account
+  configMapName: flask-config-map
+  configData:
+    FLASK_SECRET_KEY: "secretkey_secretkey"
+    SQLALCHEMY_DATABASE_URI: "sqlite:///admin.db"
+    nuran: pp
+    xx: xx
+    yy: yy
+    zz: zz
+
+  
+  pvcName: "flask-app-pvc"
+  storageClassName: "standard"
+  storageSize: "1Gi"
+  accessModes: 
+    - ReadWriteOnce
+  pvPath: "/data"
+
+  
